@@ -27,7 +27,7 @@ workspace(Defs.workspace)
 outputdir = "%{cfg.buildcfg}-%{cfg.platform}"
 
 project(Defs.project)
-    kind "SharedLib"
+    kind "WindowedApp"
     language "C++"
 
 	targetdir ("bin/" .. outputdir .. "/%{prj.name}")

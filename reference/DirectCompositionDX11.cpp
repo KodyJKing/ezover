@@ -1,6 +1,4 @@
-/*
-	Shamelessly lifted from https://learn.microsoft.com/en-us/answers/questions/1190872/how-do-i-create-a-simple-transparent-window-in-win
-*/
+// Source: https://learn.microsoft.com/en-us/answers/questions/1190872/how-do-i-create-a-simple-transparent-window-in-win
 
 #include <windows.h>
 #include <tchar.h>
@@ -19,8 +17,6 @@
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
-
-HWND targetWindow;
 
 HINSTANCE hInst;
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -45,8 +41,10 @@ ID2D1SolidColorBrush* m_pD2DBrushGreen = NULL;
 IDCompositionDevice* m_pDCompositionDevice = NULL;
 IDCompositionTarget* m_pDCompositionTarget = NULL;
 
-template <class T> void SafeRelease(T** ppT) {
-	if (*ppT) {
+template <class T> void SafeRelease(T** ppT)
+{
+	if (*ppT)
+	{
 		(*ppT)->Release();
 		*ppT = NULL;
 	}
@@ -61,46 +59,49 @@ HRESULT CreateDirectComposition(HWND hWnd);
 void OnResize(HWND hWnd, UINT nWidth, UINT nHeight);
 void Clean();
 
-int createOverlayWindow(HWND _targetWindow) {
-    targetWindow = _targetWindow;
-	hInst = HINSTANCE(GetModuleHandleA("ezover.dll"));
-    
-	WNDCLASSEX wcex = {
+int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
+{
+	hInst = hInstance;
+	WNDCLASSEX wcex =
+	{
 		sizeof(WNDCLASSEX), CS_HREDRAW | CS_VREDRAW, WndProc, 0, 0, hInst, LoadIcon(NULL, IDI_APPLICATION),
 		LoadCursor(NULL, IDC_ARROW), (HBRUSH)(COLOR_WINDOW + 1), NULL, TEXT("WindowClass"), NULL,
 	};
 	if (!RegisterClassEx(&wcex))
 		return MessageBox(NULL, TEXT("Cannot register class !"), TEXT("Error"), MB_ICONERROR | MB_OK);
-        
 	int nX = (GetSystemMetrics(SM_CXSCREEN) - nWidth) / 2, nY = (GetSystemMetrics(SM_CYSCREEN) - nHeight) / 2;
 	HWND hWnd = CreateWindowEx(WS_EX_NOREDIRECTIONBITMAP, wcex.lpszClassName, TEXT("Test"), WS_OVERLAPPEDWINDOW, nX, nY, nWidth, nHeight, NULL, NULL, hInst, NULL);
 	if (!hWnd)
 		return MessageBox(NULL, TEXT("Cannot create window !"), TEXT("Error"), MB_ICONERROR | MB_OK);
-        
 	ShowWindow(hWnd, SW_SHOWNORMAL);
 	UpdateWindow(hWnd);
-    
 	MSG msg;
-	while (GetMessage(&msg, NULL, 0, 0)) {
+	while (GetMessage(&msg, NULL, 0, 0))
+	{
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
-    
 	return (int)msg.wParam;
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
 	int wmId, wmEvent;
-	switch (message) {
-	case WM_CREATE: {
+	switch (message)
+	{
+	case WM_CREATE:
+	{
 		HRESULT hr = CoInitialize(NULL);
-		if (SUCCEEDED(hr)) {
+		if (SUCCEEDED(hr))
+		{
 			hr = CreateD2D1Factory();
-			if (SUCCEEDED(hr)) {
+			if (SUCCEEDED(hr))
+			{
 				hr = CreateD3D11Device();
 				hr = CreateDeviceResources();
 				hr = CreateSwapChain(NULL);
-				if (SUCCEEDED(hr)) {
+				if (SUCCEEDED(hr))
+				{
 					hr = ConfigureSwapChain(hWnd);
 					hr = CreateDirectComposition(hWnd);
 				}
@@ -109,9 +110,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		return 0;
 	}
 	break;
-	case WM_RBUTTONDOWN: {
+	case WM_RBUTTONDOWN:
+	{
 		HRESULT hr = S_OK;
-		if (m_pD2DDeviceContext3 && m_pDXGISwapChain1) {
+		if (m_pD2DDeviceContext3 && m_pDXGISwapChain1)
+		{
 			m_pD2DDeviceContext3->BeginDraw();
 			D2D1_SIZE_F size = m_pD2DDeviceContext3->GetSize();
 			//m_pD2DDeviceContext3->Clear(D2D1::ColorF(D2D1::ColorF::Red, 0.5f));
@@ -124,21 +127,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		}
 	}
 	break;	
-	/*case WM_PAINT: {
+	/*case WM_PAINT:
+	{
 		PAINTSTRUCT ps;
 		HDC hDC = BeginPaint(hWnd, &ps);
 
 		EndPaint(hWnd, &ps);
 	}
 	break;*/
-	case WM_SIZE: {
+	case WM_SIZE:
+	{
 		UINT nWidth = LOWORD(lParam);
 		UINT nHeight = HIWORD(lParam);
 		OnResize(hWnd, nWidth, nHeight);
 		return 0;
 	}	
 	break;
-	case WM_DESTROY: {
+	case WM_DESTROY:
+	{
 		Clean();
 		CoUninitialize();
 		PostQuitMessage(0);
@@ -151,7 +157,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	return 0;
 }
 
-HRESULT CreateD2D1Factory() {
+HRESULT CreateD2D1Factory()
+{
 	HRESULT hr = S_OK;
 	D2D1_FACTORY_OPTIONS options;
 	ZeroMemory(&options, sizeof(D2D1_FACTORY_OPTIONS));
@@ -160,7 +167,8 @@ HRESULT CreateD2D1Factory() {
 	return hr;
 }
 
-HRESULT CreateSwapChain(HWND hWnd) {
+HRESULT CreateSwapChain(HWND hWnd)
+{
 	HRESULT hr = S_OK;
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = { 0 };
 	swapChainDesc.Width = 1;
@@ -177,14 +185,18 @@ HRESULT CreateSwapChain(HWND hWnd) {
 	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
 	IDXGIAdapter* pDXGIAdapter = nullptr;
 	hr = m_pDXGIDevice->GetAdapter(&pDXGIAdapter);
-	if (SUCCEEDED(hr)) {
+	if (SUCCEEDED(hr))
+	{
 		IDXGIFactory2* pDXGIFactory2 = nullptr;
 		hr = pDXGIAdapter->GetParent(IID_PPV_ARGS(&pDXGIFactory2));
-		if (SUCCEEDED(hr)) {
-			if (hWnd != NULL) {
+		if (SUCCEEDED(hr))
+		{
+			if (hWnd != NULL)
+			{
 				hr = pDXGIFactory2->CreateSwapChainForHwnd(m_pD3D11Device, hWnd, &swapChainDesc, nullptr, nullptr, &m_pDXGISwapChain1);
 			}
-			else {
+			else
+			{
 				hr = pDXGIFactory2->CreateSwapChainForComposition(m_pD3D11Device, &swapChainDesc, nullptr, &m_pDXGISwapChain1);
 			}
 			if (SUCCEEDED(hr))
@@ -196,7 +208,8 @@ HRESULT CreateSwapChain(HWND hWnd) {
 	return hr;
 }
 
-HRESULT ConfigureSwapChain(HWND hWnd) {
+HRESULT ConfigureSwapChain(HWND hWnd)
+{
 	HRESULT hr = S_OK;
 
 	D2D1_BITMAP_PROPERTIES1 bitmapProperties = D2D1::BitmapProperties1(
@@ -211,11 +224,14 @@ HRESULT ConfigureSwapChain(HWND hWnd) {
 	bitmapProperties.dpiY = nDPI;
 
 	IDXGISurface* pDXGISurface;
-	if (m_pDXGISwapChain1) {
+	if (m_pDXGISwapChain1)
+	{
 		hr = m_pDXGISwapChain1->GetBuffer(0, IID_PPV_ARGS(&pDXGISurface));
-		if (SUCCEEDED(hr)) {
+		if (SUCCEEDED(hr))
+		{
 			hr = m_pD2DDeviceContext3->CreateBitmapFromDxgiSurface(pDXGISurface, bitmapProperties, &m_pD2DTargetBitmap);
-			if (SUCCEEDED(hr)) {
+			if (SUCCEEDED(hr))
+			{
 				m_pD2DDeviceContext3->SetTarget(m_pD2DTargetBitmap);
 			}
 			SafeRelease(&pDXGISurface);
@@ -225,7 +241,8 @@ HRESULT ConfigureSwapChain(HWND hWnd) {
 }
 
 // https://docs.microsoft.com/en-us/windows/win32/direct2d/devices-and-device-contexts
-HRESULT CreateD3D11Device() {
+HRESULT CreateD3D11Device()
+{
 	HRESULT hr = S_OK;
 	UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 	creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -234,7 +251,8 @@ HRESULT CreateD3D11Device() {
 	// The ordering is important and you should  preserve it.
 	// Don't forget to declare your app's minimum required feature level in its
 	// description.  All apps are assumed to support 9.1 unless otherwise stated.
-	D3D_FEATURE_LEVEL featureLevels[] = {
+	D3D_FEATURE_LEVEL featureLevels[] =
+	{
 		D3D_FEATURE_LEVEL_11_1,
 		D3D_FEATURE_LEVEL_11_0,
 		D3D_FEATURE_LEVEL_10_1,
@@ -256,13 +274,16 @@ HRESULT CreateD3D11Device() {
 		&featureLevel,            // returns feature level of device created
 		&m_pD3D11DeviceContext                    // returns the device immediate context
 	);
-	if (SUCCEEDED(hr)) {
+	if (SUCCEEDED(hr))
+	{
 		// Obtain the underlying DXGI device of the Direct3D11 device.
 		hr = m_pD3D11Device->QueryInterface((IDXGIDevice1**)&m_pDXGIDevice);
-		if (SUCCEEDED(hr)) {
+		if (SUCCEEDED(hr))
+		{
 			// Obtain the Direct2D device for 2-D rendering.
 			hr = m_pD2DFactory1->CreateDevice(m_pDXGIDevice, &m_pD2DDevice);
-			if (SUCCEEDED(hr)) {
+			if (SUCCEEDED(hr))
+			{
 				// Get Direct2D device's corresponding device context object.
 				ID2D1DeviceContext* pD2DDeviceContext = NULL;
 				hr = m_pD2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &pD2DDeviceContext);
@@ -275,9 +296,11 @@ HRESULT CreateD3D11Device() {
 	return hr;
 }
 
-HRESULT CreateDeviceResources() {
+HRESULT CreateDeviceResources()
+{
 	HRESULT hr = S_OK;
-	if (m_pD2DDeviceContext3) {
+	if (m_pD2DDeviceContext3)
+	{
 		hr = m_pD2DDeviceContext3->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 0.5f), &m_pD2DBrushBlack);	
 		hr = m_pD2DDeviceContext3->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 0.5f), &m_pD2DBrushWhite);
 		hr = m_pD2DDeviceContext3->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue, 1.0f), &m_pD2DBrushBlue);
@@ -286,15 +309,19 @@ HRESULT CreateDeviceResources() {
 	return hr;
 }
 
-HRESULT CreateDirectComposition(HWND hWnd) {
+HRESULT CreateDirectComposition(HWND hWnd)
+{
 	HRESULT hr = S_OK;	
 	hr = DCompositionCreateDevice(m_pDXGIDevice, __uuidof(m_pDCompositionDevice),	(void**)(&m_pDCompositionDevice));
-	if (SUCCEEDED(hr)) {	
+	if (SUCCEEDED(hr))
+	{	
 		hr = m_pDCompositionDevice->CreateTargetForHwnd(hWnd, true, &m_pDCompositionTarget);
-		if (SUCCEEDED(hr)) {
+		if (SUCCEEDED(hr))
+		{
 			IDCompositionVisual* pDCompositionVisual = NULL;
 			hr = m_pDCompositionDevice->CreateVisual(&pDCompositionVisual);
-			if (SUCCEEDED(hr)) {
+			if (SUCCEEDED(hr))
+			{
 				hr = pDCompositionVisual->SetContent(m_pDXGISwapChain1);
 				hr = m_pDCompositionTarget->SetRoot(pDCompositionVisual);
 				hr = m_pDCompositionDevice->Commit();
@@ -305,10 +332,13 @@ HRESULT CreateDirectComposition(HWND hWnd) {
 	return hr;
 }
 
-void OnResize(HWND hWnd, UINT nWidth, UINT nHeight) {
-	if (m_pDXGISwapChain1) {
+void OnResize(HWND hWnd, UINT nWidth, UINT nHeight)
+{
+	if (m_pDXGISwapChain1)
+	{
 		HRESULT hr = S_OK;		
-		if (nWidth != 0 && nHeight != 0) {
+		if (nWidth != 0 && nHeight != 0)
+		{
 			m_pD2DDeviceContext3->SetTarget(nullptr);
 			SafeRelease(&m_pD2DTargetBitmap);
 			hr = m_pDXGISwapChain1->ResizeBuffers(
@@ -318,12 +348,14 @@ void OnResize(HWND hWnd, UINT nWidth, UINT nHeight) {
 				DXGI_FORMAT_B8G8R8A8_UNORM,
 				0
 			);
-			if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) {
+			if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+			{
 				CreateD3D11Device();
 				CreateSwapChain(NULL);
 				return;
 			}
-			else {
+			else
+			{
 				//DX::ThrowIfFailed(hr);
 			}
 			ConfigureSwapChain(hWnd);
@@ -331,14 +363,16 @@ void OnResize(HWND hWnd, UINT nWidth, UINT nHeight) {
 	}
 }
 
-void CleanDeviceResources() {
+void CleanDeviceResources()
+{
 	SafeRelease(&m_pD2DBrushBlack);
 	SafeRelease(&m_pD2DBrushWhite);	
 	SafeRelease(&m_pD2DBrushBlue);
 	SafeRelease(&m_pD2DBrushGreen);	
 }
 
-void Clean() {
+void Clean()
+{
 	SafeRelease(&m_pD2DDevice);
 	SafeRelease(&m_pD2DDeviceContext3);
 	SafeRelease(&m_pD2DTargetBitmap);

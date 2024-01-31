@@ -1,0 +1,2 @@
+$workspace = "PremakeTemplate"
+$project = "PremakeTemplate"

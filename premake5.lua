@@ -1,6 +1,6 @@
 Defs = {
-    workspace = "PremakeTemplate",
-    project = "PremakeTemplate"
+    workspace = "ezover",
+    project = "ezover"
 }
 
 -- Output definitions to a PowerShell script
@@ -27,7 +27,7 @@ workspace(Defs.workspace)
 outputdir = "%{cfg.buildcfg}-%{cfg.platform}"
 
 project(Defs.project)
-    kind "ConsoleApp"
+    kind "SharedLib"
     language "C++"
 
 	targetdir ("bin/" .. outputdir .. "/%{prj.name}")

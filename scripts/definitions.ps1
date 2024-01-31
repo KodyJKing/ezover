@@ -1,2 +1,2 @@
-$workspace = "PremakeTemplate"
-$project = "PremakeTemplate"
+$workspace = "ezover"
+$project = "ezover"

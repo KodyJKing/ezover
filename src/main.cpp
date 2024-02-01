@@ -1,5 +1,7 @@
 #include <windows.h>
 #include <iostream>
+#include <math.h>
+#include <chrono>
 
 // DX9
 #include <d3d9.h>
@@ -13,11 +15,85 @@ int nWidth = 800, nHeight = 600;
 LPDIRECT3D9 d3d = NULL;
 LPDIRECT3DDEVICE9 d3dDevice = NULL;
 
-#define ALPHA_KEY RGB(0,255,0)
-#define ALPHA_KEY_DX D3DCOLOR_XRGB(0,255,0)
+#define ALPHA_KEY_R 0
+#define ALPHA_KEY_G 1
+#define ALPHA_KEY_B 0
+#define ALPHA_KEY RGB(ALPHA_KEY_R, ALPHA_KEY_G, ALPHA_KEY_B)
+#define ALPHA_KEY_DX D3DCOLOR_XRGB(ALPHA_KEY_R, ALPHA_KEY_G, ALPHA_KEY_B)
 
 void OnResize(HWND hWnd, UINT nWidth, UINT nHeight);
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+// Returns precise time in milliseconds since the start of the program.
+uint64_t GetTimeSinceStart() {
+    auto now = std::chrono::system_clock::now();
+    uint64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    static uint64_t startMs = nowMs;
+    return nowMs - startMs;
+}
+
+void draw() {
+    // Get precise time
+    uint64_t t = GetTimeSinceStart();
+
+    // d3dDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0,0,255), 1.0f, 0);
+    d3dDevice->Clear(0, NULL, D3DCLEAR_TARGET, ALPHA_KEY_DX, 1.0f, 0);
+
+    d3dDevice->BeginScene();
+
+    // Get window size
+    RECT rc;
+    GetClientRect(hWnd, &rc);
+    int width = rc.right - rc.left;
+    int height = rc.bottom - rc.top;
+
+    float cx = width / 2.0f;
+    float cy = height / 2.0f;
+
+    d3dDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+    struct Vertex {
+        float x, y, z, w;
+        DWORD color;
+    };
+
+
+    float r = 100.0f;
+    float pi = 3.14159265359f;
+    float dAngle = pi * 2.0f / 3.0f;
+    float angle = t * 0.0001f;
+
+    float x0 = cosf(angle + dAngle * 0.0f) * r + cx;
+    float y0 = sinf(angle + dAngle * 0.0f) * r + cy;
+    float x1 = cosf(angle + dAngle * 1.0f) * r + cx;
+    float y1 = sinf(angle + dAngle * 1.0f) * r + cy;
+    float x2 = cosf(angle + dAngle * 2.0f) * r + cx;
+    float y2 = sinf(angle + dAngle * 2.0f) * r + cy;
+
+    Vertex vertices[] = {
+        { x0, y0, 0.5f, 1.0f, D3DCOLOR_XRGB(0, 0, 255), },
+        { x1, y1, 0.5f, 1.0f, D3DCOLOR_XRGB(0, 255, 0), },
+        { x2, y2, 0.5f, 1.0f, D3DCOLOR_XRGB(255, 0, 0), },
+    };
+
+    d3dDevice->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, vertices, sizeof(Vertex));
+
+    // Draw border lines around window
+    d3dDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+    float h0 = height - 1.0f;
+    float w0 = width - 1.0f;
+    DWORD color = D3DCOLOR_XRGB(255, 255, 0);
+    Vertex border[] = {
+        { 0.0f, 0.0f, 0.5f, 1.0f, color, },
+        { w0,   0.0f, 0.5f, 1.0f, color, },
+        { w0,   h0,   0.5f, 1.0f, color, },
+        { 0.0f, h0,   0.5f, 1.0f, color, },
+        { 0.0f, 0.0f, 0.5f, 1.0f, color, },
+    };
+    d3dDevice->DrawPrimitiveUP(D3DPT_LINESTRIP, 4, border, sizeof(Vertex));
+
+    d3dDevice->EndScene();
+    d3dDevice->Present(NULL, NULL, NULL, NULL);
+}
 
 int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
     std::cout << "Hello DX9" << std::endl;
@@ -58,58 +134,25 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 	if (!hWnd)
 		return MessageBox(NULL, TEXT("Cannot create window !"), TEXT("Error"), MB_ICONERROR | MB_OK);
 
-    SetLayeredWindowAttributes(hWnd, ALPHA_KEY, 255, LWA_COLORKEY);
+    SetLayeredWindowAttributes(hWnd, ALPHA_KEY, 0, LWA_COLORKEY);
 
 	ShowWindow(hWnd, SW_SHOWNORMAL);
 	UpdateWindow(hWnd);
 
 	MSG msg;
-	while (GetMessage(&msg, NULL, 0, 0)) {
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+	while (true) {
+        // GetMessage(&msg, NULL, 0, 0)
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT)
+                break;
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        draw();
 	}
 
 	return (int)msg.wParam;
-}
-
-void draw() {
-    d3dDevice->BeginScene();
-    d3dDevice->Clear(0, NULL, D3DCLEAR_TARGET, ALPHA_KEY, 1.0f, 0);
-
-    d3dDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
-    struct Vertex {
-        float x, y, z, w;
-        DWORD color;
-    };
-    Vertex vertices[] = {
-        { 150.0f, 50.0f, 0.5f, 1.0f, D3DCOLOR_XRGB(0, 0, 255), },
-        { 250.0f, 250.0f, 0.5f, 1.0f, D3DCOLOR_XRGB(0, 255, 0), },
-        { 50.0f, 250.0f, 0.5f, 1.0f,  D3DCOLOR_XRGB(255, 0, 0), },
-    };
-    d3dDevice->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, vertices, sizeof(Vertex));
-
-    // Get window size
-    RECT rc;
-    GetClientRect(hWnd, &rc);
-    int width = rc.right - rc.left;
-    int height = rc.bottom - rc.top;
-
-    // Draw border lines around window
-    d3dDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
-    float h0 = height - 1.0f;
-    float w0 = width - 1.0f;
-    DWORD color = D3DCOLOR_XRGB(255, 255, 0);
-    Vertex border[] = {
-        { 0.0f, 0.0f, 0.5f, 1.0f, color, },
-        { w0,   0.0f, 0.5f, 1.0f, color, },
-        { w0,   h0,   0.5f, 1.0f, color, },
-        { 0.0f, h0,   0.5f, 1.0f, color, },
-        { 0.0f, 0.0f, 0.5f, 1.0f, color, },
-    };
-    d3dDevice->DrawPrimitiveUP(D3DPT_LINESTRIP, 4, border, sizeof(Vertex));
-
-    d3dDevice->EndScene();
-    d3dDevice->Present(NULL, NULL, NULL, NULL);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -142,12 +185,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         std::cout << "WM_RBUTTONDOWN" << std::endl;
 	}
 	break;	
-	case WM_PAINT: {
-		// PAINTSTRUCT ps;
-		// HDC hDC = BeginPaint(hWnd, &ps);
-		// EndPaint(hWnd, &ps);
-        draw();
-	}
+	// case WM_PAINT: {
+	// 	// PAINTSTRUCT ps;
+	// 	// HDC hDC = BeginPaint(hWnd, &ps);
+	// 	// EndPaint(hWnd, &ps);
+    //     draw();
+	// }
 	break;
 	case WM_SIZE: {
 		UINT nWidth = LOWORD(lParam);

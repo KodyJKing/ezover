@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <iostream>
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <chrono>
 
@@ -24,7 +25,7 @@ LPDIRECT3DDEVICE9 d3dDevice = NULL;
 void OnResize(HWND hWnd, UINT nWidth, UINT nHeight);
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-// Returns precise time in milliseconds since the start of the program.
+// Returns time in milliseconds since first call.
 uint64_t GetTimeSinceStart() {
     auto now = std::chrono::system_clock::now();
     uint64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
@@ -56,26 +57,23 @@ void draw() {
         DWORD color;
     };
 
-
     float r = 100.0f;
-    float pi = 3.14159265359f;
-    float dAngle = pi * 2.0f / 3.0f;
+    float pi = (float) M_PI;
+    const int sides = 6;
+    float dAngle = pi * 2.0f / sides;
     float angle = t * 0.0001f;
-
-    float x0 = cosf(angle + dAngle * 0.0f) * r + cx;
-    float y0 = sinf(angle + dAngle * 0.0f) * r + cy;
-    float x1 = cosf(angle + dAngle * 1.0f) * r + cx;
-    float y1 = sinf(angle + dAngle * 1.0f) * r + cy;
-    float x2 = cosf(angle + dAngle * 2.0f) * r + cx;
-    float y2 = sinf(angle + dAngle * 2.0f) * r + cy;
-
-    Vertex vertices[] = {
-        { x0, y0, 0.5f, 1.0f, D3DCOLOR_XRGB(0, 0, 255), },
-        { x1, y1, 0.5f, 1.0f, D3DCOLOR_XRGB(0, 255, 0), },
-        { x2, y2, 0.5f, 1.0f, D3DCOLOR_XRGB(255, 0, 0), },
+    Vertex vertices[sides];
+    static const DWORD colors[3] = {
+        D3DCOLOR_XRGB(0, 0, 255),
+        D3DCOLOR_XRGB(0, 255, 0),
+        D3DCOLOR_XRGB(255, 0, 0),
     };
-
-    d3dDevice->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, vertices, sizeof(Vertex));
+    for (int i = 0; i < sides; i++) {
+        float x = cosf(angle + dAngle * i) * r + cx;
+        float y = sinf(angle + dAngle * i) * r + cy;
+        vertices[i] = { x, y, 0.5f, 1.0f, colors[i % 3]};
+    }
+    d3dDevice->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, sides - 2, vertices, sizeof(Vertex));
 
     // Draw border lines around window
     d3dDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
@@ -156,61 +154,59 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	int wmId, wmEvent;
 	switch (message) {
-	case WM_CREATE: {
-		// HRESULT hr = CoInitialize(NULL);
-        
-        d3d = Direct3DCreate9(D3D_SDK_VERSION);
-        if (d3d == NULL) {
-            MessageBox(hWnd, TEXT("Cannot create D3D9 object !"), TEXT("Error"), MB_ICONERROR | MB_OK);
-            return -1;
+        case WM_CREATE: {
+            // HRESULT hr = CoInitialize(NULL);
+            
+            d3d = Direct3DCreate9(D3D_SDK_VERSION);
+            if (d3d == NULL) {
+                MessageBox(hWnd, TEXT("Cannot create D3D9 object !"), TEXT("Error"), MB_ICONERROR | MB_OK);
+                return -1;
+            }
+
+            D3DPRESENT_PARAMETERS d3dpp;
+            ZeroMemory(&d3dpp, sizeof(d3dpp));
+            d3dpp.Windowed = TRUE;
+            d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+            d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
+
+            if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &d3dDevice))) {
+                MessageBox(hWnd, TEXT("Cannot create D3D9 device !"), TEXT("Error"), MB_ICONERROR | MB_OK);
+                return -1;
+            }
+
+            return 0;
         }
-
-        D3DPRESENT_PARAMETERS d3dpp;
-        ZeroMemory(&d3dpp, sizeof(d3dpp));
-        d3dpp.Windowed = TRUE;
-        d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-        d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
-
-        if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &d3dDevice))) {
-            MessageBox(hWnd, TEXT("Cannot create D3D9 device !"), TEXT("Error"), MB_ICONERROR | MB_OK);
-            return -1;
+        break;
+        case WM_RBUTTONDOWN: {
+            std::cout << "WM_RBUTTONDOWN" << std::endl;
         }
+        break;	
+        // case WM_PAINT: {
+        // 	// PAINTSTRUCT ps;
+        // 	// HDC hDC = BeginPaint(hWnd, &ps);
+        // 	// EndPaint(hWnd, &ps);
+        // }
+        break;
+        case WM_SIZE: {
+            UINT nWidth = LOWORD(lParam);
+            UINT nHeight = HIWORD(lParam);
+            OnResize(hWnd, nWidth, nHeight);
 
-		return 0;
-	}
-	break;
-	case WM_RBUTTONDOWN: {
-        std::cout << "WM_RBUTTONDOWN" << std::endl;
-	}
-	break;	
-	// case WM_PAINT: {
-	// 	// PAINTSTRUCT ps;
-	// 	// HDC hDC = BeginPaint(hWnd, &ps);
-	// 	// EndPaint(hWnd, &ps);
-    //     draw();
-	// }
-	break;
-	case WM_SIZE: {
-		UINT nWidth = LOWORD(lParam);
-		UINT nHeight = HIWORD(lParam);
-		OnResize(hWnd, nWidth, nHeight);
-
-		return 0;
-	}	
-	break;
-	case WM_DESTROY: {
-		// Clean();
-		// CoUninitialize();
-		PostQuitMessage(0);
-		return 0;
-	}
-	break;
-	default:
-		return DefWindowProc(hWnd, message, wParam, lParam);
-	}
-	return 0;
+            return 0;
+        }	
+        break;
+        case WM_DESTROY: {
+            // Clean();
+            // CoUninitialize();
+            PostQuitMessage(0);
+            return 0;
+        }
+        break;
+        default:
+            return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+    return 0;
 }
 
 void OnResize(HWND hWnd, UINT nWidth, UINT nHeight) {

@@ -32,6 +32,27 @@ uint64_t GetTimeSinceStart() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
 }
 
+void initDX9(HWND hwnd) {
+    // Create D3D9 object
+    d3d = Direct3DCreate9(D3D_SDK_VERSION);
+    if (d3d == NULL) {
+        MessageBox(hwnd, TEXT("Cannot create D3D9 object !"), TEXT("Error"), MB_ICONERROR | MB_OK);
+        return;
+    }
+
+    // Create D3D9 device
+    D3DPRESENT_PARAMETERS d3dpp;
+    ZeroMemory(&d3dpp, sizeof(d3dpp));
+    d3dpp.Windowed = TRUE;
+    d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
+
+    if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &d3dDevice))) {
+        MessageBox(hwnd, TEXT("Cannot create D3D9 device !"), TEXT("Error"), MB_ICONERROR | MB_OK);
+        return;
+    }
+}
+
 void draw() {
     // Get precise time
     uint64_t t = GetTimeSinceStart();
@@ -136,6 +157,8 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 	ShowWindow(hWnd, SW_SHOWNORMAL);
 	UpdateWindow(hWnd);
 
+    initDX9(hWnd);
+
 	MSG msg;
 	while (true) {
         // GetMessage(&msg, NULL, 0, 0)
@@ -157,22 +180,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         case WM_CREATE: {
             // HRESULT hr = CoInitialize(NULL);
             
-            d3d = Direct3DCreate9(D3D_SDK_VERSION);
-            if (d3d == NULL) {
-                MessageBox(hWnd, TEXT("Cannot create D3D9 object !"), TEXT("Error"), MB_ICONERROR | MB_OK);
-                return -1;
-            }
+            // d3d = Direct3DCreate9(D3D_SDK_VERSION);
+            // if (d3d == NULL) {
+            //     MessageBox(hWnd, TEXT("Cannot create D3D9 object !"), TEXT("Error"), MB_ICONERROR | MB_OK);
+            //     return -1;
+            // }
 
-            D3DPRESENT_PARAMETERS d3dpp;
-            ZeroMemory(&d3dpp, sizeof(d3dpp));
-            d3dpp.Windowed = TRUE;
-            d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-            d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
+            // D3DPRESENT_PARAMETERS d3dpp;
+            // ZeroMemory(&d3dpp, sizeof(d3dpp));
+            // d3dpp.Windowed = TRUE;
+            // d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+            // d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
 
-            if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &d3dDevice))) {
-                MessageBox(hWnd, TEXT("Cannot create D3D9 device !"), TEXT("Error"), MB_ICONERROR | MB_OK);
-                return -1;
-            }
+            // if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &d3dDevice))) {
+            //     MessageBox(hWnd, TEXT("Cannot create D3D9 device !"), TEXT("Error"), MB_ICONERROR | MB_OK);
+            //     return -1;
+            // }
 
             return 0;
         }

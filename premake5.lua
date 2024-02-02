@@ -33,9 +33,19 @@ project(Defs.project)
 	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("obj/" .. outputdir .. "/%{prj.name}")
 
-    files { "src/**.h", "src/**.cpp" }
+    files { 
+        "src/**.h", "src/**.cpp",
 
-    includedirs { "src" }
+        -- Imgui
+        "vendor/imgui/*.h", "vendor/imgui/*.cpp",
+        "vendor/imgui/backends/imgui_impl_win32.h", "vendor/imgui/backends/imgui_impl_win32.cpp",
+        "vendor/imgui/backends/imgui_impl_dx9.h", "vendor/imgui/backends/imgui_impl_dx9.cpp",
+    }
+
+    includedirs { 
+        "src",
+        "vendor/imgui"
+    }
 
     filter "configurations:Debug"
         defines { "DEBUG" }

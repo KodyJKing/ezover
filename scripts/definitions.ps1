@@ -1,2 +1,2 @@
-$workspace = "ezover"
 $project = "ezover"
+$workspace = "ezover"

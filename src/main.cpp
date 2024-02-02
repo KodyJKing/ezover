@@ -27,10 +27,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 // Returns time in milliseconds since first call.
 uint64_t GetTimeSinceStart() {
-    auto now = std::chrono::system_clock::now();
-    uint64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-    static uint64_t startMs = nowMs;
-    return nowMs - startMs;
+    static auto start = std::chrono::high_resolution_clock::now();
+    auto now = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
 }
 
 void draw() {
@@ -179,7 +178,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         }
         break;
         case WM_RBUTTONDOWN: {
-            std::cout << "WM_RBUTTONDOWN" << std::endl;
+            std::cout << "Right click." << std::endl;
         }
         break;	
         // case WM_PAINT: {

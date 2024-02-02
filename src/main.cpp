@@ -8,9 +8,15 @@
 #include <d3d9.h>
 #pragma comment (lib, "d3d9")
 
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx9.h"
+
 HWND hWnd;
 HINSTANCE hInstance;
 int nWidth = 800, nHeight = 600;
+
+UINT resetWidth = 0, resetHeight = 0;
 
 // D3D9 variables
 LPDIRECT3D9 d3d = NULL;
@@ -22,7 +28,6 @@ LPDIRECT3DDEVICE9 d3dDevice = NULL;
 #define ALPHA_KEY RGB(ALPHA_KEY_R, ALPHA_KEY_G, ALPHA_KEY_B)
 #define ALPHA_KEY_DX D3DCOLOR_XRGB(ALPHA_KEY_R, ALPHA_KEY_G, ALPHA_KEY_B)
 
-void OnResize(HWND hWnd, UINT nWidth, UINT nHeight);
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 // Returns time in milliseconds since first call.
@@ -36,31 +41,78 @@ void initDX9(HWND hwnd) {
     // Create D3D9 object
     d3d = Direct3DCreate9(D3D_SDK_VERSION);
     if (d3d == NULL) {
-        MessageBox(hwnd, TEXT("Cannot create D3D9 object !"), TEXT("Error"), MB_ICONERROR | MB_OK);
+        std::cout << "Couldn't create D3D9 object.\n";
         return;
     }
 
-    // Create D3D9 device
     D3DPRESENT_PARAMETERS d3dpp;
     ZeroMemory(&d3dpp, sizeof(d3dpp));
     d3dpp.Windowed = TRUE;
     d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
-
-    if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &d3dDevice))) {
-        MessageBox(hwnd, TEXT("Cannot create D3D9 device !"), TEXT("Error"), MB_ICONERROR | MB_OK);
+    d3dpp.BackBufferFormat = D3DFMT_UNKNOWN; // Need to use an explicit format with alpha if needing per-pixel alpha composition.
+    d3dpp.EnableAutoDepthStencil = TRUE;
+    d3dpp.AutoDepthStencilFormat = D3DFMT_D16;
+    d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;           // Present with vsync
+    //d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;   // Present without vsync, maximum unthrottled framerate
+    if (d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &d3dpp, &d3dDevice) < 0) {
+        std::cout << "Couldn't create D3D9 device.\n";
         return;
+    }
+
+}
+
+void initImgui() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    ImGui_ImplWin32_Init(hWnd);
+    ImGui_ImplDX9_Init(d3dDevice);
+
+    // No transparency
+    ImGui::GetStyle().Alpha = 1.0f;
+}
+
+void OnResize(HWND hWnd, UINT nWidth, UINT nHeight) {
+    std::cout << "OnResize" << std::endl;
+
+    if (nWidth == 0 || nHeight == 0)
+        return;
+
+    resetWidth = nWidth;
+    resetHeight = nHeight;
+}
+
+void resetDevice() {
+    if (d3dDevice) {
+        std::cout << "Resetting device.\n";
+
+        ImGui_ImplDX9_InvalidateDeviceObjects();
+        
+        D3DPRESENT_PARAMETERS d3dpp;
+        ZeroMemory(&d3dpp, sizeof(d3dpp));
+        d3dpp.Windowed = TRUE;
+        d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+        d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
+
+        if (FAILED(d3dDevice->Reset(&d3dpp))) {
+            std::cout << "Couldn't reset device.\n";
+            return;
+        }
+        
+        ImGui_ImplDX9_CreateDeviceObjects();
+
+        resetWidth = 0;
+        resetHeight = 0;
     }
 }
 
-void draw() {
-    // Get precise time
-    uint64_t t = GetTimeSinceStart();
-
-    // d3dDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0,0,255), 1.0f, 0);
-    d3dDevice->Clear(0, NULL, D3DCLEAR_TARGET, ALPHA_KEY_DX, 1.0f, 0);
-
-    d3dDevice->BeginScene();
+void drawNative() {
+    d3dDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+    struct Vertex {
+        float x, y, z, w;
+        DWORD color;
+    };
 
     // Get window size
     RECT rc;
@@ -71,16 +123,11 @@ void draw() {
     float cx = width / 2.0f;
     float cy = height / 2.0f;
 
-    d3dDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
-    struct Vertex {
-        float x, y, z, w;
-        DWORD color;
-    };
-
-    float r = 100.0f;
-    float pi = (float) M_PI;
+    // Draw rotating polygon
     const int sides = 6;
-    float dAngle = pi * 2.0f / sides;
+    uint64_t t = GetTimeSinceStart();
+    float r = 100.0f;
+    float dAngle = (float) M_PI * 2.0f / sides;
     float angle = t * 0.0001f;
     Vertex vertices[sides+2];
     vertices[0] = { cx, cy, 0.5f, 1.0f, D3DCOLOR_XRGB(255, 255, 255) };
@@ -109,9 +156,30 @@ void draw() {
         { 0.0f, 0.0f, 0.5f, 1.0f, color, },
     };
     d3dDevice->DrawPrimitiveUP(D3DPT_LINESTRIP, 4, border, sizeof(Vertex));
+}
 
-    d3dDevice->EndScene();
-    d3dDevice->Present(NULL, NULL, NULL, NULL);
+void drawMenu() {
+
+    ImGui_ImplDX9_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow();
+    ImGui::EndFrame();
+
+    d3dDevice->Clear(0, nullptr, D3DCLEAR_TARGET, ALPHA_KEY_DX, 1.0f, 0);
+    if (d3dDevice->BeginScene() >= 0) {
+        drawNative();
+
+        d3dDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
+        d3dDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+        d3dDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+        ImGui::Render();
+        ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+
+        d3dDevice->EndScene();
+    }
+
+    d3dDevice->Present(nullptr, nullptr, nullptr, nullptr);
 }
 
 int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
@@ -126,7 +194,8 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
         hInstance,
         LoadIcon(NULL, IDI_APPLICATION),
 		LoadCursor(NULL, IDC_ARROW),
-        CreateSolidBrush(ALPHA_KEY),
+        (HBRUSH)(COLOR_WINDOW + 1),
+        // CreateSolidBrush(ALPHA_KEY),
         NULL, 
         TEXT("WindowClass"),
         NULL,
@@ -140,11 +209,11 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 
 	hWnd = CreateWindowEx(
         WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_NOACTIVATE,
-        // WS_EX_TOPMOST | WS_EX_LAYERED,
+        // WS_EX_TOPMOST | WS_EX_NOACTIVATE,
         wcex.lpszClassName,
         TEXT("Test"),
-        WS_OVERLAPPEDWINDOW,
-        // WS_POPUP,
+        // WS_OVERLAPPEDWINDOW,
+        WS_POPUP,
         nX, nY, nWidth, nHeight, 
         NULL, NULL,
         hInstance,
@@ -155,11 +224,13 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 		return MessageBox(NULL, TEXT("Cannot create window !"), TEXT("Error"), MB_ICONERROR | MB_OK);
 
     SetLayeredWindowAttributes(hWnd, ALPHA_KEY, 0, LWA_COLORKEY);
+    SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
 
 	ShowWindow(hWnd, SW_SHOWNORMAL);
 	UpdateWindow(hWnd);
 
     initDX9(hWnd);
+    initImgui();
 
 	MSG msg;
 	while (true) {
@@ -170,24 +241,33 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
             DispatchMessage(&msg);
         }
 
-        draw();
+        if (resetWidth != 0 || resetHeight != 0)
+            resetDevice();
+
+        // draw();
+        drawMenu();
 	}
 
 	return (int)msg.wParam;
 }
 
+// Forward declare message handler from imgui_impl_win32.cpp
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+
 	switch (message) {
-        case WM_RBUTTONDOWN: {
-            std::cout << "Right click." << std::endl;
-        }
-        break;	
         case WM_SIZE: {
             UINT nWidth = LOWORD(lParam);
             UINT nHeight = HIWORD(lParam);
             OnResize(hWnd, nWidth, nHeight);
             return 0;
         }	
+        break;
+        case WM_RBUTTONDOWN: {
+            std::cout << "Right click.\n";
+            return 0;
+        }
         break;
         case WM_DESTROY: {
             // Clean();
@@ -196,28 +276,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         }
         break;
         default:
+        
+            if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+                return true;
+
             return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
-}
-
-void OnResize(HWND hWnd, UINT nWidth, UINT nHeight) {
-    std::cout << "OnResize" << std::endl;
-
-    // Skip if window is minimized
-    if (nWidth == 0 || nHeight == 0)
-        return;
-
-    if (d3dDevice) {
-        D3DPRESENT_PARAMETERS d3dpp;
-        ZeroMemory(&d3dpp, sizeof(d3dpp));
-        d3dpp.Windowed = TRUE;
-        d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-        d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
-
-        if (FAILED(d3dDevice->Reset(&d3dpp))) {
-            MessageBox(hWnd, TEXT("Cannot reset D3D9 device !"), TEXT("Error"), MB_ICONERROR | MB_OK);
-            return;
-        }
-    }
 }

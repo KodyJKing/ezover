@@ -45,7 +45,8 @@ project(Defs.project)
 
     includedirs { 
         "src",
-        "vendor/imgui"
+        "vendor/imgui/backends",
+        "vendor/imgui",
     }
 
     filter "configurations:Debug"

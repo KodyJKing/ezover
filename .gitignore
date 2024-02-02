@@ -12,3 +12,4 @@ obj/
 # Exclude
 !vendor/bin
 scripts/definitions.ps1
+imgui.ini

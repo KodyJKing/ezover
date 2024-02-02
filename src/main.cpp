@@ -82,18 +82,19 @@ void draw() {
     const int sides = 6;
     float dAngle = pi * 2.0f / sides;
     float angle = t * 0.0001f;
-    Vertex vertices[sides];
+    Vertex vertices[sides+2];
+    vertices[0] = { cx, cy, 0.5f, 1.0f, D3DCOLOR_XRGB(255, 255, 255) };
     static const DWORD colors[3] = {
         D3DCOLOR_XRGB(0, 0, 255),
         D3DCOLOR_XRGB(0, 255, 0),
         D3DCOLOR_XRGB(255, 0, 0),
     };
-    for (int i = 0; i < sides; i++) {
+    for (int i = 1; i < sides+2; i++) {
         float x = cosf(angle + dAngle * i) * r + cx;
         float y = sinf(angle + dAngle * i) * r + cy;
         vertices[i] = { x, y, 0.5f, 1.0f, colors[i % 3]};
     }
-    d3dDevice->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, sides - 2, vertices, sizeof(Vertex));
+    d3dDevice->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, sides, vertices, sizeof(Vertex));
 
     // Draw border lines around window
     d3dDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
@@ -139,10 +140,11 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 
 	hWnd = CreateWindowEx(
         WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_NOACTIVATE,
+        // WS_EX_TOPMOST | WS_EX_LAYERED,
         wcex.lpszClassName,
         TEXT("Test"),
-        // WS_OVERLAPPEDWINDOW,
-        WS_POPUP,
+        WS_OVERLAPPEDWINDOW,
+        // WS_POPUP,
         nX, nY, nWidth, nHeight, 
         NULL, NULL,
         hInstance,
@@ -161,7 +163,6 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 
 	MSG msg;
 	while (true) {
-        // GetMessage(&msg, NULL, 0, 0)
         if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT)
                 break;
@@ -177,50 +178,19 @@ int APIENTRY wWinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	switch (message) {
-        case WM_CREATE: {
-            // HRESULT hr = CoInitialize(NULL);
-            
-            // d3d = Direct3DCreate9(D3D_SDK_VERSION);
-            // if (d3d == NULL) {
-            //     MessageBox(hWnd, TEXT("Cannot create D3D9 object !"), TEXT("Error"), MB_ICONERROR | MB_OK);
-            //     return -1;
-            // }
-
-            // D3DPRESENT_PARAMETERS d3dpp;
-            // ZeroMemory(&d3dpp, sizeof(d3dpp));
-            // d3dpp.Windowed = TRUE;
-            // d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-            // d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
-
-            // if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &d3dDevice))) {
-            //     MessageBox(hWnd, TEXT("Cannot create D3D9 device !"), TEXT("Error"), MB_ICONERROR | MB_OK);
-            //     return -1;
-            // }
-
-            return 0;
-        }
-        break;
         case WM_RBUTTONDOWN: {
             std::cout << "Right click." << std::endl;
         }
         break;	
-        // case WM_PAINT: {
-        // 	// PAINTSTRUCT ps;
-        // 	// HDC hDC = BeginPaint(hWnd, &ps);
-        // 	// EndPaint(hWnd, &ps);
-        // }
-        break;
         case WM_SIZE: {
             UINT nWidth = LOWORD(lParam);
             UINT nHeight = HIWORD(lParam);
             OnResize(hWnd, nWidth, nHeight);
-
             return 0;
         }	
         break;
         case WM_DESTROY: {
             // Clean();
-            // CoUninitialize();
             PostQuitMessage(0);
             return 0;
         }
@@ -233,6 +203,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 void OnResize(HWND hWnd, UINT nWidth, UINT nHeight) {
     std::cout << "OnResize" << std::endl;
+
+    // Skip if window is minimized
+    if (nWidth == 0 || nHeight == 0)
+        return;
 
     if (d3dDevice) {
         D3DPRESENT_PARAMETERS d3dpp;

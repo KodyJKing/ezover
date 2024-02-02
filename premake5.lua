@@ -37,9 +37,10 @@ project(Defs.project)
         "src/**.h", "src/**.cpp",
 
         -- Imgui
-        "vendor/imgui/*.h", "vendor/imgui/*.cpp",
-        "vendor/imgui/backends/imgui_impl_win32.h", "vendor/imgui/backends/imgui_impl_win32.cpp",
-        "vendor/imgui/backends/imgui_impl_dx9.h", "vendor/imgui/backends/imgui_impl_dx9.cpp",
+        "vendor/imgui/*.h", 
+        "vendor/imgui/*.cpp",
+        "vendor/imgui/backends/imgui_impl_win32.*",
+        "vendor/imgui/backends/imgui_impl_dx9.*",
     }
 
     includedirs { 
